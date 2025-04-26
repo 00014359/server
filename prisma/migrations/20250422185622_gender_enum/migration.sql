@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "GENDER" AS ENUM ('MALE', 'FEMALE');
+
+-- AlterTable
+ALTER TABLE "Perfume" ADD COLUMN     "gender" "GENDER" NOT NULL DEFAULT 'FEMALE';
