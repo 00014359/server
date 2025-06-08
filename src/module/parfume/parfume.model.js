@@ -7,12 +7,94 @@ export class PerfumeModel {
     this.#_prisma = new PrismaClient();
   }
 
-  // Fetch all perfumes
-  async getAllPerfumes(gender) {
-    const where = gender ? { gender } : {};
+  // Fetch all perfumes with enhanced filtering including reviews
+  async getAllPerfumes(filters = {}) {
+    const {
+      gender,
+      search,
+      minPrice,
+      maxPrice,
+      season,
+      occasion,
+      intensity,
+      fragranceFamily,
+      minRating,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = filters;
+
+    const where = {};
+
+    // Gender filter
+    if (gender) {
+      where.gender = gender;
+    }
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { brand: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { topNotes: { hasSome: [search] } },
+        { middleNotes: { hasSome: [search] } },
+        { baseNotes: { hasSome: [search] } },
+      ];
+    }
+
+    // Price range filter
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.price = {};
+      if (minPrice !== undefined) {
+        where.price.gte = minPrice;
+      }
+      if (maxPrice !== undefined) {
+        where.price.lte = maxPrice;
+      }
+    }
+
+    // Rating filter
+    if (minRating !== undefined) {
+      where.averageRating = {
+        gte: minRating,
+      };
+    }
+
+    // Season filter
+    if (season) {
+      where.OR = [{ season: season }, { season: "ALL_SEASONS" }];
+    }
+
+    // Occasion filter
+    if (occasion) {
+      where.occasion = occasion;
+    }
+
+    // Intensity filter
+    if (intensity) {
+      where.intensity = intensity;
+    }
+
+    // Fragrance family filter
+    if (fragranceFamily) {
+      where.fragranceFamily = fragranceFamily;
+    }
+
+    // Build orderBy object
+    const orderBy = {};
+
+    // Special handling for rating sorting
+    if (sortBy === "rating") {
+      orderBy.averageRating = sortOrder;
+    } else if (sortBy === "popularity") {
+      orderBy.totalReviews = sortOrder;
+    } else {
+      orderBy[sortBy] = sortOrder;
+    }
 
     return await this.#_prisma.perfume.findMany({
       where,
+      orderBy,
     });
   }
 
@@ -23,17 +105,28 @@ export class PerfumeModel {
     });
   }
 
-  // Create a new perfume
-  async createPerfume({
-    name,
-    brand,
-    description,
-    price,
-    stock,
-    image,
-    size,
-    gender,
-  }) {
+  // Create a new perfume with enhanced attributes
+  async createPerfume(data) {
+    const {
+      name,
+      brand,
+      description,
+      price,
+      stock,
+      image,
+      size,
+      gender,
+      season = "ALL_SEASONS",
+      occasion = "DAILY",
+      intensity = "MODERATE",
+      fragranceFamily = "FLORAL",
+      topNotes = [],
+      middleNotes = [],
+      baseNotes = [],
+      longevity = 5,
+      sillage = 3,
+    } = data;
+
     return await this.#_prisma.perfume.create({
       data: {
         name,
@@ -44,27 +137,34 @@ export class PerfumeModel {
         image,
         size,
         gender,
+        season,
+        occasion,
+        intensity,
+        fragranceFamily,
+        topNotes,
+        middleNotes,
+        baseNotes,
+        longevity,
+        sillage,
+        averageRating: 0,
+        totalReviews: 0,
       },
     });
   }
 
   // Update an existing perfume
-  async updatePerfume(
-    id,
-    { name, brand, description, price, stock, image, size, gender }
-  ) {
+  async updatePerfume(id, data) {
+    // Filter out undefined values
+    const updateData = {};
+    Object.keys(data).forEach((key) => {
+      if (data[key] !== undefined) {
+        updateData[key] = data[key];
+      }
+    });
+
     return await this.#_prisma.perfume.update({
       where: { id },
-      data: {
-        name,
-        brand,
-        description,
-        price,
-        stock,
-        image,
-        size,
-        gender,
-      },
+      data: updateData,
     });
   }
 
@@ -82,5 +182,54 @@ export class PerfumeModel {
       return true;
     }
     return false;
+  }
+
+  // Get similar perfumes based on fragrance family and gender
+  async getSimilarPerfumes(perfumeId, limit = 5) {
+    const perfume = await this.getPerfumeById(perfumeId);
+    if (!perfume) return [];
+
+    return await this.#_prisma.perfume.findMany({
+      where: {
+        AND: [
+          { id: { not: perfumeId } },
+          {
+            OR: [
+              { fragranceFamily: perfume.fragranceFamily },
+              { gender: perfume.gender },
+            ],
+          },
+          { stock: { gt: 0 } },
+        ],
+      },
+      take: limit,
+      orderBy: [
+        { averageRating: "desc" },
+        { totalReviews: "desc" },
+        { createdAt: "desc" },
+      ],
+    });
+  }
+
+  // Get top-rated perfumes
+  async getTopRatedPerfumes(limit = 10) {
+    return await this.#_prisma.perfume.findMany({
+      where: {
+        AND: [{ stock: { gt: 0 } }, { totalReviews: { gt: 0 } }],
+      },
+      orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+      take: limit,
+    });
+  }
+
+  // Get most reviewed perfumes
+  async getMostReviewedPerfumes(limit = 10) {
+    return await this.#_prisma.perfume.findMany({
+      where: {
+        AND: [{ stock: { gt: 0 } }, { totalReviews: { gt: 0 } }],
+      },
+      orderBy: [{ totalReviews: "desc" }, { averageRating: "desc" }],
+      take: limit,
+    });
   }
 }

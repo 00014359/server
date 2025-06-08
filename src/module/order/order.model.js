@@ -7,37 +7,81 @@ export class OrderModel {
     this.#_prisma = new PrismaClient();
   }
 
-  async createOrder({ customerName, phone, perfumeId }) {
+  async createOrder({ userId, perfumeId, quantity, orderMessage }) {
     const perfume = await this.#_prisma.perfume.findUnique({
       where: { id: perfumeId },
     });
-    if (!perfume) throw new Error("Perfume not found.");
-
-    if (perfume.stock <= 0) {
-      throw new Error("Out of stock!");
+    if (!perfume) {
+      throw new Error("Perfume not found.");
+    }
+    if (perfume.stock < quantity) {
+      throw new Error(
+        `Not enough stock for ${perfume.name}. Available: ${perfume.stock}`
+      );
     }
 
-    await this.#_prisma.perfume.update({
-      where: { id: perfumeId },
-      data: {
-        stock: perfume.stock - 1,
-      },
+    const user = await this.#_prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    const transaction = await this.#_prisma.$transaction(async (prisma) => {
+      await prisma.perfume.update({
+        where: { id: perfumeId },
+        data: {
+          stock: perfume.stock - quantity,
+        },
+      });
+
+      const order = await prisma.order.create({
+        data: {
+          userId,
+          perfumeId,
+          quantity,
+          orderMessage,
+        },
+      });
+      return order;
     });
 
-    return await this.#_prisma.order.create({
-      data: {
-        customerName,
-        phone,
-        perfumeId,
-      },
-    });
+    return transaction;
   }
 
-  // Get all orders
   async getAllOrders() {
     return await this.#_prisma.order.findMany({
       include: {
         perfume: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async getOrdersByUserId(userId) {
+    return await this.#_prisma.order.findMany({
+      where: { userId },
+      include: {
+        perfume: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
   }

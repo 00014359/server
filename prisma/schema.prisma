@@ -1,51 +1,147 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = "postgresql://postgres:6232@localhost:5432/parfume"
+  provider = "postgresql"
+  url      = "postgresql://neondb_owner:npg_zmfCU4Eu6Wgt@ep-blue-rain-a5g5bimu.us-east-2.aws.neon.tech/perfumeDB"
 }
 
 enum GENDER {
-    MALE
-    FEMALE
+  MALE
+  FEMALE
+  UNISEX
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum SEASON {
+  SPRING
+  SUMMER
+  AUTUMN
+  WINTER
+  ALL_SEASONS
+}
+
+enum OCCASION {
+  DAILY
+  EVENING
+  SPECIAL
+  WORK
+  CASUAL
+}
+
+enum INTENSITY {
+  LIGHT
+  MODERATE
+  STRONG
+  VERY_STRONG
+}
+
+enum FRAGRANCE_FAMILY {
+  FLORAL
+  ORIENTAL
+  WOODY
+  FRESH
+  CHYPRE
+  FOUGERE
+  GOURMAND
 }
 
 model User {
-    id       String @id @default(cuid())
-    name     String @unique
-    password String
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  email     String? @unique
+  password  String
+  role      UserRole @default(USER)
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  orders    Order[]
+  reviews   Review[]
+  preferences UserPreferences?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserPreferences {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  preferredGender       GENDER
+  favoriteSeasons       SEASON[]
+  preferredOccasions    OCCASION[]
+  intensityPreference   INTENSITY
+  fragranceFamilies     FRAGRANCE_FAMILY[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Perfume {
-    id          String  @id @default(cuid())
-    name        String
-    brand       String
-    description String?
-    price       Float
-    stock       Int
-    image       String
-    size        Int
-    gender      GENDER  @default(FEMALE)
+  id              Int               @id @default(autoincrement())
+  name            String
+  brand           String
+  description     String?
+  price           Float
+  stock           Int
+  image           String
+  size            Int
+  gender          GENDER            @default(FEMALE)
 
-    orders Order[]
+  season          SEASON?        
+  occasion        OCCASION?        
+  intensity       INTENSITY?        
+  fragranceFamily FRAGRANCE_FAMILY? 
+  topNotes        String[]        
+  middleNotes     String[]        
+  baseNotes       String[]         
+  longevity       Int?              
+  sillage         Int?              
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  averageRating   Float?            @default(0)
+  totalReviews    Int               @default(0)
+
+  orders          Order[]
+  reviews         Review[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  perfumeId Int
+  perfume   Perfume  @relation(fields: [perfumeId], references: [id], onDelete: Cascade)
+  
+  rating    Int    
+  comment   String?  
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, perfumeId])
 }
 
 model Order {
-    id           String @id @default(cuid())
-    customerName String
-    phone        String
-    perfumeId    String
+  id           Int      @id @default(autoincrement())
 
-    perfume Perfume @relation(fields: [perfumeId], references: [id], onDelete: Cascade)
+  userId       Int     
+  user         User     @relation(fields: [userId], references: [id])
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  perfumeId    Int
+  perfume      Perfume  @relation(fields: [perfumeId], references: [id], onDelete: Cascade)
+
+  quantity     Int      @default(1)
+  orderMessage String? 
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

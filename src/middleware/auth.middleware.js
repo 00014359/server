@@ -2,25 +2,37 @@ import { config } from "dotenv";
 import { verifyToken } from "../utils/jwt.utils.js";
 config();
 
-// Authorize user
 export const auth = (req, res, next) => {
   try {
-    const token = req.header("authorization");
-    if (!token)
+    let token = req.header("Authorization");
+    console.log("Authorization Header:", token);
+
+    if (!token) {
       return res
         .status(401)
         .json({ message: "No authentication token, authorization denied." });
+    }
+
+    if (token.startsWith("Bearer ")) {
+      token = token.slice(7);
+    }
 
     const verified = verifyToken(token);
-    if (!verified)
+    console.log("Verified Token:", verified);
+
+    if (!verified) {
       return res
         .status(401)
-        .json({ message: "Token verification failed, authorization denied." });
+        .json({ message: "Invalid or expired token, authorization denied." });
+    }
 
-    req.user = verified.id;
-    req.token = token;
+    req.user = {
+      id: verified.id,
+      role: verified.role,
+    };
+    console.log("Authenticated User:", req.user);
     next();
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(401).json({ message: "Authentication failed. Invalid token." });
   }
 };

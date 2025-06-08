@@ -11,6 +11,7 @@ async function main() {
     update: {},
     create: {
       name: "admin",
+      role: "ADMIN",
       password: hashedPassword,
     },
   });
