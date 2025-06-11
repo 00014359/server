@@ -3,7 +3,6 @@ import reviewService from "./review.service.js";
 class ReviewController {
   constructor() {}
 
-  // Create or update a review
   async createReview(req, res) {
     try {
       const userId = req.user.id;
@@ -31,16 +30,10 @@ class ReviewController {
     }
   }
 
-  // Get all reviews for a perfume
   async getPerfumeReviews(req, res) {
     try {
       const { perfumeId } = req.params;
-      const {
-        page = 1,
-        limit = 10,
-        sortBy = "createdAt",
-        sortOrder = "desc",
-      } = req.query;
+      const { sortBy = "createdAt", sortOrder = "desc" } = req.query;
 
       const perfumeIdInt = parseInt(perfumeId);
       if (isNaN(perfumeIdInt)) {
@@ -48,8 +41,6 @@ class ReviewController {
       }
 
       const result = await reviewService.getReviewsByPerfumeId(perfumeIdInt, {
-        page,
-        limit,
         sortBy,
         sortOrder,
       });

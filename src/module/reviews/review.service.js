@@ -34,16 +34,7 @@ class ReviewService {
   async getReviewsByPerfumeId(perfumeId, options = {}) {
     await this.#checkPerfumeExists(perfumeId);
 
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-    } = options;
-
-    if (page < 1 || limit < 1 || limit > 50) {
-      throw new Error("Invalid pagination parameters");
-    }
+    const { sortBy = "createdAt", sortOrder = "desc" } = options;
 
     const validSortFields = ["createdAt", "rating"];
     if (!validSortFields.includes(sortBy)) {
@@ -56,8 +47,6 @@ class ReviewService {
     }
 
     const result = await this.#_reviewModel.getReviewsByPerfumeId(perfumeId, {
-      page: parseInt(page),
-      limit: parseInt(limit),
       sortBy,
       sortOrder,
     });
