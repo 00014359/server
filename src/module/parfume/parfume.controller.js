@@ -162,7 +162,23 @@ class ParfumeController {
   async getForYouPage(req, res) {
     try {
       const userId = req.user.id;
-      const { limit = 20 } = req.query;
+      const { limit = 20, page = 1, pageSize = 10 } = req.query; // Add page and pageSize
+
+      const parsedLimit = parseInt(limit);
+      const parsedPage = parseInt(page);
+      const parsedPageSize = parseInt(pageSize);
+
+      if (
+        isNaN(parsedPage) ||
+        isNaN(parsedPageSize) ||
+        parsedPage < 1 ||
+        parsedPageSize < 1
+      ) {
+        return res.status(400).json({
+          message:
+            "Invalid pagination parameters. page and pageSize must be valid numbers.",
+        });
+      }
 
       const hasCompletedQuiz = await preferencesService.hasUserCompletedQuiz(
         userId
@@ -175,13 +191,18 @@ class ParfumeController {
           hasCompletedQuiz: false,
           perfumes: [],
           quizUrl: "/api/preferences/quiz",
+          totalCount: 0,
+          currentPage: 1,
+          totalPages: 1,
         });
       }
 
-      const recommendations =
+      const { recommendations, totalCount } =
         await preferencesService.getEnhancedRecommendations(
           userId,
-          parseInt(limit)
+          parsedLimit,
+          parsedPage,
+          parsedPageSize
         );
 
       const result = recommendations.map((perfume) => ({
@@ -210,8 +231,10 @@ class ParfumeController {
       res.status(200).json({
         message: "Personalized recommendations based on your preferences",
         hasCompletedQuiz: true,
-        count: result.length,
         perfumes: result,
+        totalCount: totalCount,
+        currentPage: parsedPage,
+        totalPages: Math.ceil(totalCount / parsedPageSize),
       });
     } catch (error) {
       res.status(400).json({ message: error.message });

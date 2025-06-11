@@ -51,8 +51,12 @@ class PreferencesService {
   }
 
   // Get personalized recommendations
-  async getPersonalizedRecommendations(userId, limit = 10) {
-    // Check if user has completed quiz
+  async getPersonalizedRecommendations(
+    userId,
+    limit = 10,
+    page = 1,
+    pageSize = 10
+  ) {
     const hasCompletedQuiz = await this.#_preferencesModel.hasUserCompletedQuiz(
       userId
     );
@@ -64,21 +68,32 @@ class PreferencesService {
 
     return await this.#_preferencesModel.getPersonalizedRecommendations(
       userId,
-      limit
+      limit,
+      page,
+      pageSize
     );
   }
 
   // Get enhanced recommendations based on user's order history
-  async getEnhancedRecommendations(userId, limit = 10) {
-    const baseRecommendations = await this.getPersonalizedRecommendations(
-      userId,
-      limit
-    );
+  async getEnhancedRecommendations(
+    userId,
+    limit = 10,
+    page = 1,
+    pageSize = 10
+  ) {
+    const allBaseRecommendations =
+      await this.#_preferencesModel.getPersonalizedRecommendations(
+        userId,
+        limit // This limit determines the pool of recommendations to enhance
+      );
+
     const orderHistory = await this.#_preferencesModel.getUserOrderHistory(
       userId
     );
 
-    // If user has order history, we can enhance recommendations
+    let finalRecommendations = allBaseRecommendations;
+
+    // If user has order history, enhance recommendations
     if (orderHistory.length > 0) {
       const purchasedBrands = [
         ...new Set(orderHistory.map((order) => order.perfume.brand)),
@@ -88,7 +103,7 @@ class PreferencesService {
       ];
 
       // Score recommendations based on past purchases
-      const scoredRecommendations = baseRecommendations.map((perfume) => {
+      const scoredRecommendations = allBaseRecommendations.map((perfume) => {
         let score = 0;
 
         // Boost score for familiar brands
@@ -102,25 +117,34 @@ class PreferencesService {
         }
 
         // Consider price range (prefer similar price points)
-        const avgPurchasePrice =
-          orderHistory.reduce((sum, order) => sum + order.perfume.price, 0) /
-          orderHistory.length;
-        const priceDiff = Math.abs(perfume.price - avgPurchasePrice);
-        if (priceDiff <= avgPurchasePrice * 0.3) {
-          // Within 30% of average
-          score += 3;
+        if (orderHistory.length > 0) {
+          const avgPurchasePrice =
+            orderHistory.reduce((sum, order) => sum + order.perfume.price, 0) /
+            orderHistory.length;
+          const priceDiff = Math.abs(perfume.price - avgPurchasePrice);
+          if (priceDiff <= avgPurchasePrice * 0.3) {
+            // Within 30% of average
+            score += 3;
+          }
         }
 
         return { ...perfume, recommendationScore: score };
       });
 
-      // Sort by score and return
-      return scoredRecommendations
+      finalRecommendations = scoredRecommendations
         .sort((a, b) => b.recommendationScore - a.recommendationScore)
         .map(({ recommendationScore, ...perfume }) => perfume);
     }
 
-    return baseRecommendations;
+    const totalCount = finalRecommendations.length;
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedRecommendations = finalRecommendations.slice(
+      startIndex,
+      endIndex
+    );
+
+    return { recommendations: paginatedRecommendations, totalCount };
   }
 
   // Check if user has completed quiz
