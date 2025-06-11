@@ -21,6 +21,8 @@ export class PerfumeModel {
       minRating,
       sortBy = "createdAt",
       sortOrder = "desc",
+      page = 1,
+      pageSize = 10,
     } = filters;
 
     const where = {};
@@ -92,10 +94,20 @@ export class PerfumeModel {
       orderBy[sortBy] = sortOrder;
     }
 
-    return await this.#_prisma.perfume.findMany({
+    // Calculate skip and take for pagination
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const perfumes = await this.#_prisma.perfume.findMany({
       where,
       orderBy,
+      skip,
+      take,
     });
+
+    const totalCount = await this.#_prisma.perfume.count({ where });
+
+    return { perfumes, totalCount };
   }
 
   // Get a single perfume by ID

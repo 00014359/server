@@ -77,6 +77,8 @@ class ParfumeController {
         sortBy,
         sortOrder,
         minRating,
+        page = 1, // Default page to 1
+        pageSize = 10, // Default page size to 10
       } = req.query;
 
       const parsedMinPrice =
@@ -85,15 +87,21 @@ class ParfumeController {
         maxPrice !== undefined ? parseFloat(maxPrice) : undefined;
       const parsedMinRating =
         minRating !== undefined ? parseFloat(minRating) : undefined;
+      const parsedPage = parseInt(page);
+      const parsedPageSize = parseInt(pageSize);
 
       if (
         (minPrice !== undefined && isNaN(parsedMinPrice)) ||
         (maxPrice !== undefined && isNaN(parsedMaxPrice)) ||
-        (minRating !== undefined && isNaN(parsedMinRating))
+        (minRating !== undefined && isNaN(parsedMinRating)) ||
+        isNaN(parsedPage) ||
+        isNaN(parsedPageSize) ||
+        parsedPage < 1 ||
+        parsedPageSize < 1
       ) {
         return res.status(400).json({
           message:
-            "Invalid parameters. minPrice, maxPrice, and minRating must be numbers.",
+            "Invalid parameters. minPrice, maxPrice, minRating, page, and pageSize must be valid numbers.",
         });
       }
 
@@ -109,9 +117,13 @@ class ParfumeController {
         sortBy,
         sortOrder,
         minRating: parsedMinRating,
+        page: parsedPage,
+        pageSize: parsedPageSize,
       };
 
-      const perfumes = await perfumeService.getAllPerfumes(filters);
+      const { perfumes, totalCount } = await perfumeService.getAllPerfumes(
+        filters
+      );
 
       const result = perfumes.map((perfume) => ({
         id: perfume.id,
@@ -136,7 +148,12 @@ class ParfumeController {
         totalReviews: perfume.totalReviews,
       }));
 
-      res.status(200).json(result);
+      res.status(200).json({
+        perfumes: result,
+        totalCount,
+        currentPage: parsedPage,
+        totalPages: Math.ceil(totalCount / parsedPageSize),
+      });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }
