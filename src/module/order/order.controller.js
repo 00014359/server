@@ -9,7 +9,7 @@ class OrderController {
         return res.status(401).json({ message: "User not authenticated." });
       }
 
-      const { perfumeId, quantity, orderMessage } = req.body;
+      const { perfumeId, quantity, orderMessage, orderAddress } = req.body;
 
       if (typeof quantity !== "number" || quantity <= 0) {
         return res
@@ -22,6 +22,7 @@ class OrderController {
         perfumeId,
         quantity,
         orderMessage,
+        orderAddress,
       });
       res.status(201).json(order);
     } catch (err) {

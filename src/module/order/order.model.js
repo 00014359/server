@@ -7,7 +7,13 @@ export class OrderModel {
     this.#_prisma = new PrismaClient();
   }
 
-  async createOrder({ userId, perfumeId, quantity, orderMessage }) {
+  async createOrder({
+    userId,
+    perfumeId,
+    quantity,
+    orderMessage,
+    orderAddress,
+  }) {
     const perfume = await this.#_prisma.perfume.findUnique({
       where: { id: perfumeId },
     });
@@ -41,6 +47,7 @@ export class OrderModel {
           perfumeId,
           quantity,
           orderMessage,
+          orderAddress,
         },
       });
       return order;
